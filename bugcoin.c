@@ -1,0 +1,112 @@
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+typedef struct {
+    int index;
+    int prevHash;
+    int nonce;
+    char data[256];
+    int hash;
+} Block;
+
+int simpleHash(char *str) {
+    int hash = 0;
+    for (int i = 0; str[i] != '\0'; i++) {
+        hash += str[i];
+    }
+    return hash % 10000;
+}
+
+int mineBlock(char *data, int prevHash) {
+    int nonce = 0;
+    int hash;
+    char temp[512];
+    do {
+        sprintf(temp, "%d%d%s", prevHash, nonce, data);
+        hash = simpleHash(temp);
+        nonce++;
+    } while (hash % 1000 != 0);
+    return nonce - 1;
+}
+
+void saveBlock(Block b) {
+    FILE *f = fopen(".bugcoin", "a");
+    if (!f) {
+        printf("Error opening .bugcoin\n");
+        return;
+    }
+    fprintf(f, "%d|%d|%d|%s|%d\n", b.index, b.prevHash, b.nonce, b.data, b.hash);
+    fclose(f);
+}
+
+int getLastHash() {
+    FILE *f = fopen(".bugcoin", "r");
+    if (!f) return 0;
+    char line[512];
+    char *lastLine = NULL;
+    while (fgets(line, sizeof(line), f)) {
+        free(lastLine);
+        lastLine = strdup(line);
+    }
+    fclose(f);
+    if (!lastLine) return 0;
+    int index, prevHash, nonce, hash;
+    char data[256];
+    sscanf(lastLine, "%d|%d|%d|%255[^|]|%d", &index, &prevHash, &nonce, data, &hash);
+    free(lastLine);
+    return hash;
+}
+
+Block createBlock(int index, int prevHash, char *data) {
+    Block b;
+    b.index = index;
+    b.prevHash = prevHash;
+    strcpy(b.data, data);
+    b.nonce = mineBlock(data, prevHash);
+    char temp[512];
+    sprintf(temp, "%d%d%s", prevHash, b.nonce, data);
+    b.hash = simpleHash(temp);
+    saveBlock(b);
+    return b;
+}
+
+int main(int argc, char *argv[]) {
+    int nodeOn = 0, mining = 0, duration = 0;
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--true") == 0) nodeOn = 1;
+        if (strcmp(argv[i], "--false") == 0) nodeOn = 0;
+        if (strcmp(argv[i], "--mine") == 0 && i + 1 < argc) {
+            mining = (strcmp(argv[i + 1], "True") == 0);
+            i++;
+        }
+        if (strcmp(argv[i], "--d") == 0 && i + 1 < argc) {
+            char unit = argv[i + 1][strlen(argv[i + 1])-1];
+            int value = atoi(argv[i + 1]);
+            if (unit == 's') duration = value;
+            if (unit == 'm') duration = value * 60;
+            i++;
+        }
+    }
+    if (nodeOn) printf("Bugcoin node on\n");
+    else {
+        printf("Bugcoin node off\n");
+        return 0;
+    }
+    if (mining) {
+        printf("Mining Bugcoin for %d seconds...\n", duration);
+        time_t start = time(NULL);
+        int lastHash = getLastHash();
+        int index = 1;
+        while (time(NULL) - start < duration) {
+            char data[256];
+            sprintf(data, "Block mined at %ld", time(NULL));
+            Block b = createBlock(index, lastHash, data);
+            lastHash = b.hash;
+            index++;
+        }
+        printf("Mining finished\n");
+    }
+    return 0;
+}
