@@ -31,21 +31,21 @@ gcc bugcoin.c -o bugcoin
 
 ---
 
-Usage
+# Usage
 
-Start Node
+## Start Node
 
 ```bash
 ./bugcoin --true
 ```
 
-Stop Node
+## Stop Node
 
 ```bash
 ./bugcoin --false
 ```
 
-Mining
+## Mining
 
 ```bash
 ./bugcoin --mine True --d 5m --threads 5
@@ -59,15 +59,15 @@ Mining
 
 ---
 
-Viewing Your Bugcoins
+# Viewing Your Bugcoins
 
-Your mined blocks are saved in a hidden file called .bugcoin in your home directory:
+## Your mined blocks are saved in a hidden file called .bugcoin in your home directory:
 
 ```bash
 /data/data/com.termux/files/home/bugcoin/.bugcoin
 ```
 
-You can view it with:
+## You can view it with:
 
 ```bash
 cat ~/.bugcoin
@@ -78,7 +78,7 @@ Or use a web interface that reads .bugcoin and calculates total Bugcoins and USD
 
 ---
 
-Using Bugcoin on Web
+# Using Bugcoin on Web
 
 Open the HTML web page (index.html) on your browser.
 
@@ -97,13 +97,13 @@ LocalStorage can be used to remember your file for future visits.
 
 ---
 
-Notes
+# Notes
 
-Bugcoin is designed to be educational and lightweight.
+**Bugcoin is designed to be educational and lightweight.**
 
-Each block gives a fixed reward, and total supply is capped at 100 million Bugcoins.
+**Each block gives a fixed reward, and total supply is capped at 100 million Bugcoins.**
 
-Can be integrated with APIs or web platforms to simulate purchases or exchanges.
+**Can be integrated with APIs or web platforms to simulate purchases or exchanges.**
 
 
 
