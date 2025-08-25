@@ -35,15 +35,21 @@ Usage
 
 Start Node
 
+```bash
 ./bugcoin --true
+```
 
 Stop Node
 
+```bash
 ./bugcoin --false
+```
 
 Mining
 
+```bash
 ./bugcoin --mine True --d 5m --threads 5
+```
 
 --d sets duration (5m = 5 minutes, 20s = 20 seconds).
 
@@ -57,11 +63,15 @@ Viewing Your Bugcoins
 
 Your mined blocks are saved in a hidden file called .bugcoin in your home directory:
 
+```bash
 /data/data/com.termux/files/home/bugcoin/.bugcoin
+```
 
 You can view it with:
 
+```bash
 cat ~/.bugcoin
+```
 
 Or use a web interface that reads .bugcoin and calculates total Bugcoins and USD value automatically.
 
