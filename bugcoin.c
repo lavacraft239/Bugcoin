@@ -4,12 +4,15 @@
 #include <time.h>
 #include <pthread.h>
 
+#define MAX_BUGCOINS 100000000
+
 typedef struct {
     int index;
     int prevHash;
     int nonce;
     char data[256];
     int hash;
+    int reward;
 } Block;
 
 int simpleHash(char *str) {
@@ -32,13 +35,16 @@ int mineBlock(char *data, int prevHash) {
     return nonce - 1;
 }
 
+int totalBugcoins = 0;
+pthread_mutex_t lock;
+
 void saveBlock(Block b) {
     FILE *f = fopen(".bugcoin", "a");
     if (!f) {
         printf("Error opening .bugcoin\n");
         return;
     }
-    fprintf(f, "%d|%d|%d|%s|%d\n", b.index, b.prevHash, b.nonce, b.data, b.hash);
+    fprintf(f, "%d|%d|%d|%s|%d|%d\n", b.index, b.prevHash, b.nonce, b.data, b.hash, b.reward);
     fclose(f);
 }
 
@@ -53,10 +59,11 @@ int getLastHash() {
     }
     fclose(f);
     if (!lastLine) return 0;
-    int index, prevHash, nonce, hash;
+    int index, prevHash, nonce, hash, reward;
     char data[256];
-    sscanf(lastLine, "%d|%d|%d|%255[^|]|%d", &index, &prevHash, &nonce, data, &hash);
+    sscanf(lastLine, "%d|%d|%d|%255[^|]|%d|%d", &index, &prevHash, &nonce, data, &hash, &reward);
     free(lastLine);
+    totalBugcoins += reward;
     return hash;
 }
 
@@ -66,9 +73,20 @@ Block createBlock(int index, int prevHash, char *data) {
     b.prevHash = prevHash;
     strcpy(b.data, data);
     b.nonce = mineBlock(data, prevHash);
+
     char temp[512];
     sprintf(temp, "%d%d%s", prevHash, b.nonce, data);
     b.hash = simpleHash(temp);
+
+    pthread_mutex_lock(&lock);
+    if (totalBugcoins >= MAX_BUGCOINS) b.reward = 0;
+    else {
+        b.reward = 10;
+        if (totalBugcoins + b.reward > MAX_BUGCOINS) b.reward = MAX_BUGCOINS - totalBugcoins;
+        totalBugcoins += b.reward;
+    }
+    pthread_mutex_unlock(&lock);
+
     saveBlock(b);
     return b;
 }
@@ -90,13 +108,18 @@ void *mineThread(void *arg) {
         Block b = createBlock(index, lastHash, data);
         lastHash = b.hash;
         index++;
+        printf("Blocks mined: %d, Total Bugcoins: %d\n", index, totalBugcoins);
+        if (totalBugcoins >= MAX_BUGCOINS) break;
     }
+    free(td);
     return NULL;
 }
 
 int main(int argc, char *argv[]) {
     int nodeOn = 0, mining = 0, duration = 0;
     int threads = 2;
+
+    pthread_mutex_init(&lock, NULL);
 
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--true") == 0) nodeOn = 1;
@@ -124,10 +147,11 @@ int main(int argc, char *argv[]) {
         return 0;
     }
 
+    int lastHash = getLastHash();
+
     if (mining) {
         printf("Mining Bugcoin for %d seconds using %d threads...\n", duration, threads);
         pthread_t tid[threads];
-        int lastHash = getLastHash();
         for (int i = 0; i < threads; i++) {
             ThreadData *td = malloc(sizeof(ThreadData));
             td->startIndex = i + 1;
@@ -136,8 +160,9 @@ int main(int argc, char *argv[]) {
             pthread_create(&tid[i], NULL, mineThread, td);
         }
         for (int i = 0; i < threads; i++) pthread_join(tid[i], NULL);
-        printf("Mining finished\n");
+        printf("Mining finished, total Bugcoins: %d\n", totalBugcoins);
     }
 
+    pthread_mutex_destroy(&lock);
     return 0;
 }
