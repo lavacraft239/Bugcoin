@@ -1,6 +1,6 @@
 # Bugcoin
 
-**Bugcoin** is a lightweight cryptocurrency designed for low-end devices, old PCs, and smartphones. It allows you to mine coins with minimal resources, track your balance, and see their value in USD. Each Bugcoin is currently valued at **$10 USD**, and there is a maximum supply of **100 million coins**.
+**Bugcoin** is a lightweight cryptocurrency designed for low-end devices, old PCs, and smartphones. It allows you to mine coins with minimal resources, track your balance, and see their value in USD. Each Bugcoin is currently valued at **$10 USD**, and there is a maximum supply of **10 million coins**.
 
 ---
 
@@ -23,10 +23,34 @@
 
 ---
 
+## Mandatory
+
+For Bugcoin to work correctly, it is **mandatory** to create the blocks folder before mining:
+
+```bash
+mkdir -p /data/data/com.termux/files/home/storage/shared/Bugcoin/blocks
+```
+
+And in Termux, you must grant **storage permission**:
+
+```bash
+termux-setup-storage
+```
+
+This will allow blocks to be saved without errors.
+
+---
+
 ## Compiling Bugcoin Node
 
 ```bash
-gcc bugcoin.c -o bugcoin
+gcc bugcoin.c -o bugcoin -pthread
+```
+
+or
+
+```bash
+gcc bugcoin.c -o bugcoin -pthread -O0
 ```
 
 ---
@@ -48,7 +72,7 @@ gcc bugcoin.c -o bugcoin
 ## Mining
 
 ```bash
-./bugcoin --mine True --d 5m --threads 5
+./bugcoin --true --mine True --d 5m --threads 5
 ```
 
 --d sets duration (5m = 5 minutes, 20s = 20 seconds).
@@ -60,12 +84,6 @@ gcc bugcoin.c -o bugcoin
 ---
 
 # Viewing Your Bugcoins
-
-## Your mined blocks are saved in a hidden file called .bugcoin in your home directory:
-
-```bash
-/data/data/com.termux/files/home/bugcoin/.bugcoin
-```
 
 ## You can view it with:
 
