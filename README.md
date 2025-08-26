@@ -30,10 +30,13 @@ For Bugcoin to work correctly, it is **mandatory** to create the blocks folder b
 ```bash
 mkdir -p /data/data/com.termux/files/home/storage/shared/Bugcoin/blocks
 ```
+
 And in Termux, you must grant **storage permission**:
+
 ```bash
 termux-setup-storage
 ```
+
 This will allow blocks to be saved without errors.
 
 ---
