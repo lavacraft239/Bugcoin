@@ -72,7 +72,7 @@ gcc bugcoin.c -o bugcoin -pthread -O0
 ## Mining
 
 ```bash
-./bugcoin --mine True --d 5m --threads 5
+./bugcoin --true --mine True --d 5m --threads 5
 ```
 
 --d sets duration (5m = 5 minutes, 20s = 20 seconds).
