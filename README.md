@@ -23,7 +23,7 @@
 
 ---
 
-## Note start
+## Mandatory
 
 For Bugcoin to work correctly, it is **mandatory** to create the blocks folder before mining:
 
@@ -84,12 +84,6 @@ gcc bugcoin.c -o bugcoin -pthread -O0
 ---
 
 # Viewing Your Bugcoins
-
-## Youmined blocks are saved in a hidden file called .bugcoin in your home directory:
-
-```bash
-/data/data/com.termux/files/home/bugcoin/.bugcoin
-```
 
 ## You can view it with:
 
