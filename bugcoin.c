@@ -3,8 +3,24 @@
 #include <string.h>
 #include <time.h>
 #include <pthread.h>
+#include <arpa/inet.h>
+#include <unistd.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
 
 #define MAX_BUGCOINS 100000000
+#define BLOCK_DIR "/data/data/com.termux/files/home/storage/shared/Bugcoin/blocks/"
+#define POOL_PORT 3333
+#define MAX_PEERS 10
+
+volatile int running = 1;  // Para detener listener
+pthread_mutex_t lock;
+int totalBugcoins = 0;
+
+typedef struct {
+    char ip[16];
+    int port;
+} Peer;
 
 typedef struct {
     int index;
@@ -15,12 +31,31 @@ typedef struct {
     int reward;
 } Block;
 
-int simpleHash(char *str) {
-    int hash = 0;
-    for (int i = 0; str[i] != '\0'; i++) {
-        hash += str[i];
+Peer peers[MAX_PEERS];
+int peerCount = 0;
+
+unsigned int simpleHash(char *str) {
+    unsigned int hash = 5381;
+    int c;
+    while ((c = *str++)) {
+        hash = ((hash << 5) + hash) + c; // djb2
+        hash ^= (hash >> 3);
+        hash ^= (hash << 7);
     }
-    return hash % 10000;
+    return hash % 100000;
+}
+
+unsigned int hardHash(char *str) {
+    unsigned int hash = 2166136261; // FNV offset
+    int c;
+    while ((c = *str++)) {
+        hash ^= c;
+        hash *= 16777619;          // FNV prime
+        hash += (hash >> 13);      // mezcla bits
+        hash ^= (hash << 7);       // más mezcla
+        hash += (hash >> 17);
+    }
+    return hash % 100000000;       // dificultad
 }
 
 int mineBlock(char *data, int prevHash) {
@@ -29,23 +64,99 @@ int mineBlock(char *data, int prevHash) {
     char temp[512];
     do {
         sprintf(temp, "%d%d%s", prevHash, nonce, data);
-        hash = simpleHash(temp);
+        hash = hardHash(temp);
         nonce++;
-    } while (hash % 1000 != 0);
+    } while (hash % 100000 != 0); // podés aumentar el 1000 a 10000 para más dificultad
     return nonce - 1;
 }
 
-int totalBugcoins = 0;
-pthread_mutex_t lock;
-
-void saveBlock(Block b) {
-    FILE *f = fopen(".bugcoin", "a");
+void saveBlockLibrary(Block b) {
+    char path[256];
+    sprintf(path, "%sblock_%d.bug", BLOCK_DIR, b.index);
+    FILE *f = fopen(path, "w");
     if (!f) {
-        printf("Error opening .bugcoin\n");
+        printf("Error opening %s\n", path);
         return;
     }
     fprintf(f, "%d|%d|%d|%s|%d|%d\n", b.index, b.prevHash, b.nonce, b.data, b.hash, b.reward);
     fclose(f);
+}
+
+// Añadir peer
+void addPeer(const char* ip, int port) {
+    if (peerCount >= MAX_PEERS) return;
+    strncpy(peers[peerCount].ip, ip, 15);
+    peers[peerCount].port = port;
+    peerCount++;
+}
+
+// Listener de peers
+void *peerListener(void *arg) {
+    int serverSock = socket(AF_INET, SOCK_STREAM, 0);
+    if (serverSock < 0) return NULL;
+
+    struct sockaddr_in serverAddr;
+    serverAddr.sin_family = AF_INET;
+    serverAddr.sin_port = htons(POOL_PORT);
+    serverAddr.sin_addr.s_addr = INADDR_ANY;
+
+    if (bind(serverSock, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
+        close(serverSock);
+        return NULL;
+    }
+
+    listen(serverSock, MAX_PEERS);
+    printf("Listening for peer connections on port %d...\n", POOL_PORT);
+
+    while (running) {
+        struct sockaddr_in clientAddr;
+        socklen_t addrLen = sizeof(clientAddr);
+        int clientSock = accept(serverSock, (struct sockaddr*)&clientAddr, &addrLen);
+        if (clientSock < 0) continue;
+
+        char buffer[512];
+        int bytes = recv(clientSock, buffer, sizeof(buffer)-1, 0);
+        if (bytes > 0) {
+            buffer[bytes] = '\0';
+            int index, prevHash, nonce, hash, reward;
+            char data[256];
+            sscanf(buffer, "%d|%d|%d|%255[^|]|%d|%d", &index, &prevHash, &nonce, data, &hash, &reward);
+
+            Block b;
+            b.index = index; b.prevHash = prevHash; b.nonce = nonce;
+            strcpy(b.data, data); b.hash = hash; b.reward = reward;
+
+            pthread_mutex_lock(&lock);
+            if (totalBugcoins + b.reward <= MAX_BUGCOINS) totalBugcoins += b.reward;
+            pthread_mutex_unlock(&lock);
+
+            saveBlockLibrary(b);
+            printf("Received block %d from peer\n", b.index);
+        }
+        close(clientSock);
+    }
+    close(serverSock);
+    return NULL;
+}
+
+// Broadcast de bloque a peers
+void broadcastBlock(Block b) {
+    for (int i = 0; i < peerCount; i++) {
+        int sock = socket(AF_INET, SOCK_STREAM, 0);
+        if (sock < 0) continue;
+
+        struct sockaddr_in addr;
+        addr.sin_family = AF_INET;
+        addr.sin_port = htons(peers[i].port);
+        inet_pton(AF_INET, peers[i].ip, &addr.sin_addr);
+
+        if (connect(sock, (struct sockaddr*)&addr, sizeof(addr)) == 0) {
+            char buffer[512];
+            sprintf(buffer, "%d|%d|%d|%s|%d|%d\n", b.index, b.prevHash, b.nonce, b.data, b.hash, b.reward);
+            send(sock, buffer, strlen(buffer), 0);
+        }
+        close(sock);
+    }
 }
 
 int getLastHash() {
@@ -81,13 +192,15 @@ Block createBlock(int index, int prevHash, char *data) {
     pthread_mutex_lock(&lock);
     if (totalBugcoins >= MAX_BUGCOINS) b.reward = 0;
     else {
-        b.reward = 10;
-        if (totalBugcoins + b.reward > MAX_BUGCOINS) b.reward = MAX_BUGCOINS - totalBugcoins;
-        totalBugcoins += b.reward;
-    }
-    pthread_mutex_unlock(&lock);
+    b.reward = 10;
+    if (totalBugcoins + b.reward > MAX_BUGCOINS)
+        b.reward = MAX_BUGCOINS - totalBugcoins;
+    totalBugcoins += b.reward;
+}
+pthread_mutex_unlock(&lock);
 
-    saveBlock(b);
+    saveBlockLibrary(b);
+    broadcastBlock(b);
     return b;
 }
 
@@ -109,6 +222,8 @@ void *mineThread(void *arg) {
         lastHash = b.hash;
         index++;
         printf("Blocks mined: %d, Total Bugcoins: %d\n", index, totalBugcoins);
+
+        if (b.reward == 0) break;  // Detiene el minado si no quedan Bugcoins
         if (totalBugcoins >= MAX_BUGCOINS) break;
     }
     free(td);
@@ -149,6 +264,10 @@ int main(int argc, char *argv[]) {
 
     int lastHash = getLastHash();
 
+    // Listener de peers
+    pthread_t listenerThread;
+    pthread_create(&listenerThread, NULL, peerListener, NULL);
+
     if (mining) {
         printf("Mining Bugcoin for %d seconds using %d threads...\n", duration, threads);
         pthread_t tid[threads];
@@ -162,6 +281,10 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < threads; i++) pthread_join(tid[i], NULL);
         printf("Mining finished, total Bugcoins: %d\n", totalBugcoins);
     }
+
+    // Detener listener al final
+    running = 0;
+    pthread_join(listenerThread, NULL);
 
     pthread_mutex_destroy(&lock);
     return 0;
