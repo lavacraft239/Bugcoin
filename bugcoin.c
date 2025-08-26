@@ -8,7 +8,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 
-#define MAX_BUGCOINS 100000000
+#define MAX_BUGCOINS 10000000
 #define BLOCK_DIR "/data/data/com.termux/files/home/storage/shared/Bugcoin/blocks/"
 #define POOL_PORT 3333
 #define MAX_PEERS 10
