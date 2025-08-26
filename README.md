@@ -26,7 +26,13 @@
 ## Compiling Bugcoin Node
 
 ```bash
-gcc bugcoin.c -o bugcoin
+gcc bugcoin.c -o bugcoin -pthread
+```
+
+or
+
+```bash
+gcc bugcoin.c -o bugcoin -pthread -O0
 ```
 
 ---
@@ -61,7 +67,7 @@ gcc bugcoin.c -o bugcoin
 
 # Viewing Your Bugcoins
 
-## Your mined blocks are saved in a hidden file called .bugcoin in your home directory:
+## Youmined blocks are saved in a hidden file called .bugcoin in your home directory:
 
 ```bash
 /data/data/com.termux/files/home/bugcoin/.bugcoin
