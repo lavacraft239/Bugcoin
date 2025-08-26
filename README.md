@@ -1,6 +1,6 @@
 # Bugcoin
 
-**Bugcoin** is a lightweight cryptocurrency designed for low-end devices, old PCs, and smartphones. It allows you to mine coins with minimal resources, track your balance, and see their value in USD. Each Bugcoin is currently valued at **$10 USD**, and there is a maximum supply of **100 million coins**.
+**Bugcoin** is a lightweight cryptocurrency designed for low-end devices, old PCs, and smartphones. It allows you to mine coins with minimal resources, track your balance, and see their value in USD. Each Bugcoin is currently valued at **$10 USD**, and there is a maximum supply of **10 million coins**.
 
 ---
 
